@@ -100,8 +100,7 @@ convert_check(bool pred, unsigned char * returnSite)
 
     unsigned char * const alignedSite = PAGE_ALIGN(callSite, pagesize);
     const int writableAttr = PROT_READ|PROT_EXEC|PROT_WRITE;
-    if(mprotect(alignedSite, pagesize, writableAttr))
-    {
+    if(mprotect(alignedSite, pagesize, writableAttr)) {
         const int error = errno;
         printf("mprotect set failed: %p->%p\n", callSite, alignedSite);
         if (error == EACCES) {
@@ -128,8 +127,7 @@ convert_check(bool pred, unsigned char * returnSite)
     //       We do not want to leave the page writable.
     //       Maybe we have to??
     const int normalAttr = PROT_READ | PROT_EXEC | PROT_WRITE;
-    if(mprotect(alignedSite, pagesize, normalAttr))
-    {
+    if(mprotect(alignedSite, pagesize, normalAttr)) {
         const int error = errno;
         printf("mprotect reset failed: %p->%p\n", callSite, alignedSite);
         if (error == EACCES) {
