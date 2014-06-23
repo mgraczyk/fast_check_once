@@ -156,7 +156,7 @@ convert_check_thunk()
             "\n" \
             "push %%rsi \n" \
             "push %%rdx \n" \
-            "mov 1b, %%rsi \n" \
+            "mov $1b, %%rsi \n" \
             "mov $convert_check_thunk, %%rdx \n" \
             "call *%%rdx \n" \
             "pop %%rdx \n" \
