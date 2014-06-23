@@ -9,7 +9,7 @@
 
 #define NUM_TESTS 2
 
-static volatile int xRef = 0;
+static volatile int xRef[NUM_TESTS] = {};
 static volatile int xTest[NUM_TESTS] = {};
 
 bool
@@ -29,7 +29,14 @@ test_predicate_inv() {
 static inline void bmark_normal_check()
 {
     if (test_predicate()) {
-        ++xRef;
+        ++xRef[0];
+    }
+}
+
+static inline void bmark_normal_check_inv()
+{
+    if (test_predicate_inv()) {
+        ++xRef[1];
     }
 }
 
@@ -66,11 +73,15 @@ self_check()
 
     fputs("Benchmark Results:\n", stdout);
 
-    fputs("Normal:\t\t\t\t", stdout);
+    fputs("control:\t", stdout);
     timespec_print(run_benchmark(bmark_normal_check, iterations));
     fputs("\n", stdout);
 
-    fputs("fast_check:\t\t", stdout);
+    fputs("control_inv:\t", stdout);
+    timespec_print(run_benchmark(bmark_normal_check_inv, iterations));
+    fputs("\n", stdout);
+
+    fputs("fast_check:\t", stdout);
     timespec_print(run_benchmark(bmark_fast_check, iterations));
     fputs("\n", stdout);
 
@@ -78,12 +89,9 @@ self_check()
     timespec_print(run_benchmark(bmark_fast_check_inv, iterations));
     fputs("\n", stdout);
 
-    const int expected = xRef;
     int result = 0;
-
     for (size_t i = 0; i < NUM_TESTS; ++i) {
-        const int actual = xTest[i];
-        result += assert_equal(actual, expected);
+        result += assert_equal(xTest[i], xRef[i]);
     }
 
     return result;
