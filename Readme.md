@@ -10,7 +10,7 @@ For example, the code
 bool long_computation() { .... }
 
 
-if (fast_check_function(long_computation)) {
+if (fast_check(long_computation())) {
     do_something();
 }
 ```
@@ -32,12 +32,21 @@ Currently only GCC on Linux x86-64 is supported.
 $> make
 $> ./test
 Benchmark Results:
-Normal:     0.332003022
-fast_check: 0.336111127
-fast_check_function: 0.000001452
+control:        0.329808754
+control_inv:	0.343990744
+fast_check:     0.017974983
+fast_check_inv:	0.006938278
 $>
 ```
 
-# TODO
+## TODO (In order)
 
-The optimization is currently only a performance improvement when the caller uses a predicate function.  The implemented needs to be tweaked to exhibit performance improvements for the no-function cases (fast_check instead of fast_check_function).
+- More tests
+
+- LLVM Linux x86-64 support
+- GCC Linux IA-32 support
+- LLVM Linux IA-32 support
+- MSVC Windows x86-64 support
+- MSVC Windows IA-32 support
+
+- GCC/LLVM ARMv7/8 support
