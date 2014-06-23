@@ -36,7 +36,7 @@ extern "C" {
 typedef void (*benchmark_func_t)();
 typedef struct timespec timespec_t;
 
-static FORCE_INLINE uint64_t get_ticks()
+static inline uint64_t get_ticks()
 {
     uint64_t ticks;
 
@@ -66,12 +66,13 @@ timespec_diff(timespec_t start, timespec_t end)
     return temp;
 }
 
-static FORCE_INLINE void timespec_print(timespec_t ts)
+static void
+timespec_print(timespec_t ts)
 {
     printf("%lld.%.9ld", (long long)ts.tv_sec, ts.tv_nsec);
 }
 
-static FORCE_INLINE void
+static inline void
 finish_pending()
 {
     __asm__ volatile(

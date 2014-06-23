@@ -27,186 +27,145 @@
 #endif
 
 #define ARRAY_SIZE(arr) (sizeof(arr)/sizeof(arr[0]))
+
 #define PAGE_ALIGN(addr, pagesize) \
     ((void *)(((uintptr_t)addr) & ~(((uintptr_t)pagesize)-1)))
 
-// TODO: Any way to check this at compile time?
-#define FAST_CHECK_CODE_SIZE 9
-
 typedef bool (*predicate_func_t)();
 
-static FORCE_INLINE bool
-fast_check_function(predicate_func_t fpred)
+static void
+try_set_page_attr(unsigned char * const addr, const long pagesize, const int attr)
 {
-    uintptr_t rtmp;
-    __asm__ volatile(
-        "mov $convert_check_pfunc_thunk, %[rtmp] \n"
-        "call *%[rtmp] \n"
-        :
-        [rtmp]"=r"(rtmp)
-        :
-        "D"(fpred)
-        );
+    if(mprotect(addr, pagesize, attr)) {
+        const int error = errno;
 
-    // never reached
-    return fpred;
-}
+        fflush(stdout);
 
-static FORCE_INLINE bool
-fast_check(bool predValue)
-{
-    uintptr_t rtmp;
-    __asm__ volatile(
-        "mov $convert_check_thunk, %[rtmp] \n"
-        "call *%[rtmp] \n"
-        :
-        [rtmp]"=r"(rtmp)
-        :
-        "D"(predValue)
-        );
-
-    // never reached
-    return predValue;
+        fputs("\nError: mprotect set failed\n", stderr);
+        if (error == EACCES) {
+            fputs("Access Violation\n", stderr);
+        } else if (error == EINVAL) {
+            fputs("Invalid Pointer\n", stderr);
+        } else if (error == ENOMEM) {
+            fputs("Out of kernel memory or out of range\n", stderr);
+        }
+        exit(EXIT_FAILURE);
+    }
 }
 
 bool
-convert_check(bool pred, unsigned char * returnSite)
+convert_check(bool pred, unsigned char * target)
 {
-    const unsigned char truePatch[FAST_CHECK_CODE_SIZE] = {
-        // mov %0x1,%eax
+    const unsigned char truePatch[] = {
+        // mov $0x1,%eax
         0xb8, 0x01, 0x00, 0x00, 0x00,
-
-        // 0x66... 2e 0f 1f is nopw with 66 operand prefix
-        //0x66, 0x2e, 0x0f, 0x1f,
-        0x0f, 0x1f, 0x40, 0x00
-        
     };
 
-    const unsigned char falsePatch[FAST_CHECK_CODE_SIZE] = {
-        // xor %eax,%eax
-        0x31, 0xc0,
-
-        // 0x66... 2e 0f 1f is nopw with 66 operand prefix
-        //0x66, 0x66, 0x66, 0x66, 0x2e, 0x0f, 0x1f,
-        0x0f, 0x1f, 0x80, 0x00, 0x00, 0x00, 0x00,
+    const unsigned char falsePatch[] = {
+        // mov $0x0,%eax
+        0xb8, 0x00, 0x00, 0x00, 0x00,
     };
 
-    unsigned char * restrict const callSite = returnSite - FAST_CHECK_CODE_SIZE;
 
-    const unsigned int pagesize = getpagesize();
+    const long pagesize = sysconf(_SC_PAGESIZE);
 
-    const unsigned char * patch =
-        pred ? truePatch : falsePatch;
+    unsigned char * const alignedSite = PAGE_ALIGN(target, pagesize);
+    const unsigned char * const patch = pred ? truePatch : falsePatch;
 
-    unsigned char * const alignedSite = PAGE_ALIGN(callSite, pagesize);
     const int writableAttr = PROT_READ|PROT_EXEC|PROT_WRITE;
-    if(mprotect(alignedSite, pagesize, writableAttr)) {
-        const int error = errno;
-        printf("mprotect set failed: %p->%p\n", callSite, alignedSite);
-        if (error == EACCES) {
-            puts("Access Violation");
-        } else if (error == EINVAL) {
-            puts("Invalid Pointer");
-        } else if (error == ENOMEM) {
-            puts("Out of kernel memory or out of range");
-        }
-        exit(EXIT_FAILURE);
-    } 
+    try_set_page_attr(alignedSite, pagesize, writableAttr);
 
-    const void * const result = memcpy(callSite, patch, FAST_CHECK_CODE_SIZE);
-   
+    const void * const result = memcpy(target, patch, ARRAY_SIZE(truePatch));
+
+   // TODO: I don't think this is necessary
     __asm__ volatile(
-        "clflush %[callSite] \n"
+        "clflush %[target] \n"
         "mfence \n"
         ::
-        [callSite]"m"(callSite),
+        [target]"m"(target),
         [dep]"r"(result) // Make this a dependency so the compiler puts this asm after memcpy
-        );
+        :
+        "memory");
 
     // TODO: For some reason the test segfaults if PROT_WRITE is removed from normalAttr
     //       We do not want to leave the page writable.
     //       Maybe we have to??
     const int normalAttr = PROT_READ | PROT_EXEC | PROT_WRITE;
-    if(mprotect(alignedSite, pagesize, normalAttr)) {
-        const int error = errno;
-        printf("mprotect reset failed: %p->%p\n", callSite, alignedSite);
-        if (error == EACCES) {
-            puts("Access Violation");
-        } else if (error == EINVAL) {
-            puts("Invalid Pointer");
-        } else if (error == ENOMEM) {
-            puts("Out of kernel memory or out of range");
-        }
-        exit(EXIT_FAILURE);
-    } 
+    try_set_page_attr(alignedSite, pagesize, normalAttr);
 
     return pred;
 }
 
-#define PUSH_ALL_REGS   \
-        "push %rax \n"  \
-        "push %rbx \n"  \
-        "push %rcx \n"  \
-        "push %rdx \n"  \
-        "push %rbp \n"  \
-        "push %rdi \n"  \
-        "push %rsi \n"  \
-        "push %r8 \n"   \
-        "push %r9 \n"   \
-        "push %r10 \n"  \
-        "push %r11 \n"  \
-        "push %r12 \n"  \
-        "push %r13 \n"  \
-        "push %r14 \n"  \
+void
+convert_check_thunk()
+    // pred is in rax
+    // target is in rsi
+{
+    // TODO: We could get creative here and derive the
+    __asm__ volatile(
+        "push %rbx \n"
+        "push %rcx \n"
+        "push %rdx \n"
+        "push %rdi \n"
+        "push %rsi \n"
+        "push %rbp \n"
+        "push %r8 \n"
+        "push %r9 \n"
+        "push %r10 \n"
+        "push %r11 \n"
+        "push %r12 \n"
+        "push %r13 \n"
+        "push %r14 \n"
         "push %r15 \n"
 
-#define POP_ALL_REGS   \
-        "pop %r15 \n"  \
-        "pop %r14 \n"  \
-        "pop %r13 \n"  \
-        "pop %r12 \n"  \
-        "pop %r11 \n"  \
-        "pop %r10 \n"  \
-        "pop %r9 \n"   \
-        "pop %r8 \n"   \
-        "pop %rsi \n"  \
-        "pop %rdi \n"  \
-        "pop %rbp \n"  \
-        "pop %rdx \n"  \
-        "pop %rcx \n"  \
-        "pop %rbx \n"  \
-        "pop %rax \n"  \
-
-void
-convert_check_thunk(bool pred)
-{
-    __asm__ volatile(
-        PUSH_ALL_REGS
-
-        // Get return pointer in rsi
-        // pred is already in rdi
-        "mov 0x78(%rsp), %rsi \n"
-        "call convert_check \n"
-
-        POP_ALL_REGS
-        );
-}
-void
-convert_check_pfunc_thunk(predicate_func_t fpred)
-{
-    __asm__ volatile(
-        PUSH_ALL_REGS 
-
-        // Get predicate value fron func in rdi
-        "callq *%rdi \n"
         "mov %rax, %rdi \n"
-
-        // Get return pointer in rsi
-        "mov 0x78(%rsp), %rsi \n"
         "call convert_check \n"
 
-        POP_ALL_REGS 
+        "pop %r15 \n"
+        "pop %r14 \n"
+        "pop %r13 \n"
+        "pop %r12 \n"
+        "pop %r11 \n"
+        "pop %r10 \n"
+        "pop %r9 \n"
+        "pop %r8 \n"
+        "pop %rbp \n"
+        "pop %rsi \n"
+        "pop %rdi \n"
+        "pop %rdx \n"
+        "pop %rcx \n"
+        "pop %rbx \n"
         );
+    // Returns pred in RAX
 }
+
+#define fast_check(predExpr) \
+({ \
+     /* TODO: Make sure this first block isn't moved past predExpr evaluation */ \
+     __asm__ volatile( \
+            "1:\n" \
+            "jmp 3f \n"  /* jmp is two bytes */ \
+            "nop \n"      /* So we add 3 nops to fit 5 byte mov instruction */ \
+            "nop \n" \
+            "nop \n" \
+            "jmp 1f \n" \
+            "3: \n" \
+            ); \
+    bool pred = (predExpr); \
+    __asm__ volatile( \
+            "\n" \
+            "push %%rsi \n" \
+            "push %%rdx \n" \
+            "mov 1b, %%rsi \n" \
+            "mov $convert_check_thunk, %%rdx \n" \
+            "call *%%rdx \n" \
+            "pop %%rdx \n" \
+            "pop %%rsi \n" \
+            "1:\n" \
+            : [pred]"+A"(pred) \
+            );\
+    pred; \
+})
 
 #undef FORCE_INLINE
+#undef ARRAY_SIZE
