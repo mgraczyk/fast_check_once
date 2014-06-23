@@ -11,6 +11,7 @@
 
 static volatile int xRef[NUM_TESTS] = {};
 static volatile int xTest[NUM_TESTS] = {};
+static volatile int junk;
 
 bool
 test_predicate() {
@@ -30,6 +31,8 @@ static inline void bmark_normal_check()
 {
     if (test_predicate()) {
         ++xRef[0];
+    } else {
+        ++junk;
     }
 }
 
@@ -37,6 +40,8 @@ static inline void bmark_normal_check_inv()
 {
     if (test_predicate_inv()) {
         ++xRef[1];
+    } else {
+        ++junk;
     }
 }
 
@@ -44,6 +49,8 @@ static inline void bmark_fast_check()
 {
     if (fast_check(test_predicate())) {
         ++xTest[0];
+    } else {
+        ++junk;
     }
 }
 
@@ -51,6 +58,8 @@ static inline void bmark_fast_check_inv()
 {
     if (fast_check(test_predicate_inv())) {
         ++xTest[1];
+    } else {
+        ++junk;
     }
 }
 

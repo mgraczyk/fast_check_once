@@ -32,10 +32,10 @@ Currently only GCC on Linux x86-64 is supported.
 $> make
 $> ./test
 Benchmark Results:
-control:        0.329808754
-control_inv:	0.343990744
-fast_check:     0.017974983
-fast_check_inv:	0.006938278
+control:	    0.366526130
+control_inv:	0.377934730
+fast_check:	    0.016232998
+fast_check_inv:	0.017661894
 $>
 ```
 
