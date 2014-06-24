@@ -26,6 +26,10 @@
 #error "Linux 64bit is currently the only supported platform."
 #endif
 
+#ifdef ARRAY_SIZE
+#undef ARRAY_SIZE
+#endif
+
 #define ARRAY_SIZE(arr) (sizeof(arr)/sizeof(arr[0]))
 
 #define PAGE_ALIGN(addr, pagesize) \
@@ -144,12 +148,12 @@ convert_check_thunk()
      /* TODO: Make sure this first block isn't moved past predExpr evaluation */ \
      __asm__ volatile( \
             "1:\n" \
-            "jmp 3f \n"  /* jmp is two bytes */ \
+            "jmp 2f \n"  /* jmp is two bytes */ \
             "nop \n"      /* So we add 3 nops to fit 5 byte mov instruction */ \
             "nop \n" \
             "nop \n" \
             "jmp 1f \n" \
-            "3: \n" \
+            "2: \n" \
             ); \
     bool pred = (predExpr); \
     __asm__ volatile( \
@@ -161,9 +165,10 @@ convert_check_thunk()
             "call *%%rdx \n" \
             "pop %%rdx \n" \
             "pop %%rsi \n" \
+            ".align 16 \n" \
             "1:\n" \
             : [pred]"+A"(pred) \
-            );\
+            :: "memory");\
     pred; \
 })
 
