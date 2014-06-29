@@ -43,7 +43,7 @@ $>
 
 - More tests
 
-~~- LLVM Linux x86-64 support~~
+- ~~LLVM Linux x86-64 support~~
 - GCC Linux IA-32 support
 - LLVM Linux IA-32 support
 - MSVC Windows x86-64 support
