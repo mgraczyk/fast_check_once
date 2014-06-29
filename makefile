@@ -1,7 +1,7 @@
-TARGET=test
+TARGET=./test
 LIBS=-lrt
 INCLUDE=
-CC=gcc
+CC?=gcc
 CFLAGS:=-std=c11 -Wall -fpic -O3
 
 OBJECTS = $(patsubst %.cpp, %.o, $(wildcard *.cpp)) \
@@ -10,7 +10,7 @@ OBJECTS = $(patsubst %.cpp, %.o, $(wildcard *.cpp)) \
 HEADERS = $(wildcard *.h)
 INCLUDECC = $(addprefix -I,$(INCLUDE))
 
-.PHONY: default all clean
+.PHONY: default all clean self_test
 .PRECIOUS: $(TARGET) $(OBJECTS)
 .SUFFIXES:
 
@@ -28,6 +28,13 @@ debug: default
 
 $(TARGET): $(OBJECTS)
 	$(CC) $(OBJECTS) -Wall $(LIBS) -o $@
+
+run: $(TARGET)
+	$(TARGET)
+
+self_test:
+	$(MAKE) -B run CC=gcc
+	$(MAKE) -B run CC=clang
 
 clean:
 	-rm -f *.o
