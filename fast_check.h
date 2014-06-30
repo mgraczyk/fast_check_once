@@ -79,17 +79,7 @@ convert_check(bool pred, unsigned char * target)
     const int writableAttr = PROT_READ|PROT_EXEC|PROT_WRITE;
     try_set_page_attr(alignedSite, pagesize, writableAttr);
 
-    const void * const result = memcpy(target, patch, ARRAY_SIZE(truePatch));
-
-   // TODO: I don't think this is necessary
-    __asm__ volatile(
-        "clflush %[target] \n"
-        "mfence \n"
-        ::
-        [target]"m"(target),
-        [dep]"r"(result) // Make this a dependency so the compiler puts this asm after memcpy
-        :
-        "memory");
+    memcpy(target, patch, ARRAY_SIZE(truePatch));
 
     // TODO: For some reason the test segfaults if PROT_WRITE is removed from normalAttr
     //       We do not want to leave the page writable.
