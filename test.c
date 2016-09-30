@@ -103,6 +103,9 @@ self_check()
         result += assert_equal(xTest[i], xRef[i]);
     }
 
+    if (result == 0) {
+        fputs("PASS\n", stdout);
+    }
     return result;
 }
 
